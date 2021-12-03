@@ -1,6 +1,8 @@
 import numpy as np
 import sympy
 from shapely.geometry import Polygon, Point
+import skgeom as sg
+from skgeom.draw import draw
 import math
 import logging
 from typing import Tuple
@@ -11,6 +13,9 @@ DEBUG_MSG = True  # enable print messages
 MAX_SUB_NODE_COUNT = 50  # wide node constraint
 NODE_STEP = 3  # regular node granularity
 PUTTER_NOTE_STEP = 0.5  # node granularity for putting
+
+
+
 
 
 class Player:
@@ -27,10 +32,34 @@ class Player:
         self.logger = logger
 
         self.shapely_poly = None
+        self.scikit_poly = None
         self.graph = {}
         self.all_nodes_center = {}
         self.needs_edge_init = True
+        self.critial_pts = []
 
+
+    def draw_skeleton(self, polygon, skeleton, show_time=False):
+        draw(polygon)
+
+        for h in skeleton.halfedges:
+            if h.is_bisector:
+                p1 = h.vertex.point
+                p2 = h.opposite.vertex.point
+
+                """ m = (p1.y() - p2.y()) / (p1.x() - p2.x())
+                b = p1.y() - (p1.x() * m) """
+                # y = mx + b
+                
+                #plt.plot([p1.x(), p2.x()], [p1.y(), p2.y()], 'r-', lw=2)
+                #plt.plot(p1.x(), p1.y(), 'bo')
+                #plt.plot(p2.x(), p2.y(), 'bo')
+        
+        for v in skeleton.vertices:
+            if (v.point not in polygon.vertices):
+                self.critical_pts.append([v.point.x(), v.point.y()])
+                
+        
     def validate_node(self, x, y, step):
         """ Function which determines if a node of size step x step centered at (x, y) is a valid node in our 
         self.shapely_poly 
@@ -273,44 +302,22 @@ class Player:
 
         # Case 1: required_dist > 20m
         if required_dist > 20:
-            # Detect edges of map
-            map_ver = golf_map.vertices
-            center = golf_map.centroid
-            leftest = math.floor(center[0])
-            rightest = math.floor(center[0])
-            highest = math.floor(center[1])
-            lowest = math.floor(center[1])
-            for point in map_ver:
-                # leftest
-                if point[0] < leftest:
-                    leftest = math.floor(point[0])
-                # rightest
-                if point[0] > rightest:
-                    rightest = math.ceil(point[0])
-                # highest
-                if point[1] > highest:
-                    highest = math.ceil(point[1])
-                # lowest
-                if point[1] < lowest:
-                    lowest = math.floor(point[1])
-
+            
             if score == 1:
-                self.construct_nodes(golf_map, int(leftest), int(rightest), int(highest), int(lowest), NODE_STEP, target)
-                if self.needs_edge_init:
-                    self.construct_edges(curr_loc, only_construct_from_source=False)  # construct all edges
-                    self.needs_edge_init = False
-            else:
-                self.construct_edges(curr_loc,
-                                     only_construct_from_source=True)  # only construct outgoing edges of curr_loc
+                self.shapely_poly = Polygon([(p.x, p.y) for p in golf_map.vertices])
+                self.scikit_poly = sg.Polygon([(p.x, p.y) for p in golf_map.vertices])
+                skel = sg.skeleton.create_interior_straight_skeleton(self.scikit_poly)
+                #skel = sg.skeleton.create_exterior_straight_skeleton(self.scikit_poly, 0.1)
+
+                self.draw_skeleton(self.scikit_poly,skel)
+                
+            
+                
 
         # Case 2: required_dist < 20m (putting dist)
         else:
-            leftest = math.floor(curr_loc.x - 20)
-            rightest = math.ceil(curr_loc.x + 20)
-            highest = math.ceil(curr_loc.y + 20)
-            lowest = math.floor(curr_loc.y - 20)
-            self.construct_nodes(golf_map, int(leftest), int(rightest), int(highest), int(lowest), PUTTER_NOTE_STEP, target)
-            self.construct_edges(curr_loc, only_construct_from_source=False)
+            print("work on this")
+            
         move = self.BFS(target)
 
         roll_factor = 1.1
