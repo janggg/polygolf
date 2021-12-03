@@ -1,7 +1,31 @@
 import numpy as np
 import sympy
+from shapely.geometry import Polygon, Point
+import skgeom as sg
+from skgeom.draw import draw
+import matplotlib.pyplot as plt
+from skimage.io import imsave, imread
+import math
 import logging
 from typing import Tuple
+from collections import defaultdict
+import time
+
+def draw_skeleton(polygon, skeleton, show_time=False):
+    draw(polygon)
+
+    for h in skeleton.halfedges:
+        if h.is_bisector:
+            p1 = h.vertex.point
+            p2 = h.opposite.vertex.point
+            plt.plot([p1.x(), p2.x()], [p1.y(), p2.y()], 'r-', lw=2)
+    plt.savefig('test.png')
+
+    if show_time:
+        for v in skeleton.vertices:
+            plt.gcf().gca().add_artist(plt.Circle(
+                (v.point.x(), v.point.y()),
+                v.time, color='blue', fill=False))
 
 class Player:
     def __init__(self, skill: int, rng: np.random.Generator, logger: logging.Logger) -> None:
@@ -15,6 +39,7 @@ class Player:
         self.skill = skill
         self.rng = rng
         self.logger = logger
+        self.straight_skel_pts = []
 
     def play(self, score: int, golf_map: sympy.Polygon, target: sympy.geometry.Point2D, curr_loc: sympy.geometry.Point2D, prev_loc: sympy.geometry.Point2D, prev_landing_point: sympy.geometry.Point2D, prev_admissible: bool) -> Tuple[float, float]:
         """Function which based n current game state returns the distance and angle, the shot must be played 
@@ -32,9 +57,31 @@ class Player:
             Tuple[float, float]: Return a tuple of distance and angle in radians to play the shot
         """
         required_dist = curr_loc.distance(target)
+
+        #self.shapely_poly = Polygon([(p.x, p.y) for p in golf_map.vertices])
+        poly = sg.Polygon([(p.x, p.y) for p in golf_map.vertices])
+        skel = sg.skeleton.create_interior_straight_skeleton(poly)
+
+        draw_skeleton(poly,skel)
+
+        for h in skel.halfedges:
+            if h.is_bisector:
+                p1 = h.vertex.point
+                #print(p1)
+                p2 = h.opposite.vertex.point
+                self.straight_skel_pts.append((p1.x(), p1.y()))
+        
+        #image = np.array([self.straight_skel_pts], dtype=np.uint8)
+        #imsave("test.png", image)
+
+
+        #poly = sg.Polygon([sg.Point2(0, 0), sg.Point2(0, 3), sg.Point2(3, 3)])
+
         roll_factor = 1.1
         if required_dist < 20:
             roll_factor  = 1.0
+
+        
         distance = sympy.Min(200+self.skill, required_dist/roll_factor)
         angle = sympy.atan2(target.y - curr_loc.y, target.x - curr_loc.x)
         return (distance, angle)
