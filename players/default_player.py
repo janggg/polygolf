@@ -18,7 +18,18 @@ def draw_skeleton(polygon, skeleton, show_time=False):
         if h.is_bisector:
             p1 = h.vertex.point
             p2 = h.opposite.vertex.point
-            plt.plot([p1.x(), p2.x()], [p1.y(), p2.y()], 'r-', lw=2)
+
+            """ m = (p1.y() - p2.y()) / (p1.x() - p2.x())
+            b = p1.y() - (p1.x() * m) """
+            # y = mx + b
+            
+            #plt.plot([p1.x(), p2.x()], [p1.y(), p2.y()], 'r-', lw=2)
+            #plt.plot(p1.x(), p1.y(), 'bo')
+            #plt.plot(p2.x(), p2.y(), 'bo')
+    
+    for v in skeleton.vertices:
+        if (v.point not in polygon.vertices):
+            plt.plot(v.point.x(), v.point.y(), 'bo')
     plt.savefig('test.png')
 
     if show_time:
@@ -58,9 +69,11 @@ class Player:
         """
         required_dist = curr_loc.distance(target)
 
+        since = time.time()
         #self.shapely_poly = Polygon([(p.x, p.y) for p in golf_map.vertices])
         poly = sg.Polygon([(p.x, p.y) for p in golf_map.vertices])
-        skel = sg.skeleton.create_interior_straight_skeleton(poly)
+        #skel = sg.skeleton.create_interior_straight_skeleton(poly)
+        skel = sg.skeleton.create_exterior_straight_skeleton(poly, 0.1)
 
         draw_skeleton(poly,skel)
 
@@ -71,6 +84,7 @@ class Player:
                 p2 = h.opposite.vertex.point
                 self.straight_skel_pts.append((p1.x(), p1.y()))
         
+        print("time for construct_nodes:", time.time() - since)
         #image = np.array([self.straight_skel_pts], dtype=np.uint8)
         #imsave("test.png", image)
 
