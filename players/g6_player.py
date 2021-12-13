@@ -13,7 +13,7 @@ from typing import Tuple
 from collections import defaultdict
 import time
 
-DEBUG_MSG = False  # enable print messages
+DEBUG_MSG = True  # enable print messages
 
 
 class Player:
@@ -62,7 +62,7 @@ class Player:
 
             self.scikit_poly = sg.Polygon([(p.x, p.y) for p in golf_map.vertices])
             skel = sg.skeleton.create_interior_straight_skeleton(self.scikit_poly)
-            self.draw_skeleton(self.scikit_poly, skel)
+            self.draw_skeleton(self.scikit_poly, skel, True)
             self.construct_nodes(target)
             if DEBUG_MSG:
                 draw(self.scikit_poly)
@@ -93,7 +93,7 @@ class Player:
                 pickle.dump([self.shapely_poly, self.shapely_edges, self.graph, self.critical_pts], f)
         
 
-    def draw_skeleton(self, polygon, skeleton, show_time=False):
+    def draw_skeleton(self, polygon, skeleton, int_skel, show_time=False):
         draw(polygon)
         self.critical_pts = []
         for v in skeleton.vertices:
@@ -105,9 +105,9 @@ class Player:
             if not self.shapely_poly.contains(Point(point[0], point[1])):
                 out_count += 1
         # print("out count: ", str(out_count))
-        if out_count:
+        if out_count and int_skel:
             skel = sg.skeleton.create_exterior_straight_skeleton(self.scikit_poly, 0.1)
-            self.draw_skeleton(self.scikit_poly, skel)
+            self.draw_skeleton(self.scikit_poly, skel, False)
 
     def validate_node(self, x, y, step):
         """ Function which determines if a node of size step x step centered at (x, y) is a valid node in our 
